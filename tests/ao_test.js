@@ -7,6 +7,7 @@ var node_topo = require('./../index');
 var fs = require('fs');
 
 var _DEBUG = false;
+var _STATE = true || _DEBUG;
 
 /** *****************
  *
@@ -16,31 +17,41 @@ var _DEBUG = false;
 
 /* *********************** TEST SCAFFOLDING ********************* */
 
-var citygrid_file = path.resolve(__dirname,
-	'../test_source/citygrid.png');
-var citygrid_ao_file = path.resolve(__dirname,
-	'../test_source/citygrid_ao.png');
-var citygrid_shaded_file = path.resolve(__dirname,
-	'../test_source/citygrid_shaded.png');
-var cityhouse_file = path.resolve(__dirname,
-	'../test_source/cityhouse.png');
-var cityhouse_shaded_file = path.resolve(__dirname,
-	'../test_source/cityhouse_ao.png');
+function _path(file){
+	return path.resolve(__dirname, '../test_source/', file);
+}
 
-var ao = node_topo.filters.ao({
+var ao_filter = node_topo.filters.ao({
 	radius:      4,
 	post_filter: function (light, value) {
 		var color = Math.round(128 + light);
 		return [color, color, color, 255];
 	}});
 
-var shade = node_topo.filters.shadow({ rise: 2.5, distance: 3, fade: 1.66});
+var shade_filter = node_topo.filters.shadow({ rise: 2.5, distance: 3, fade: 1.66});
+
+function _float_to_color(v) {
+	//	console.log('color for shadow: %s', v);
+	var color = Math.floor(v * 255);
+	return [color, color, color, 255];
+}
+
+function _d_grayscale_to_color(v){
+	var color = Math.floor(128 + v);
+	return [color, color, color, 255];
+}
+
+function _grayscale_to_color(v) {
+	//	console.log('color for shadow: %s', v);
+	var color = Math.floor(v);
+	return [color, color, color, 255];
+}
 
 /* ************************* TESTS ****************************** */
 
 if (false) {
 	tap.test('test_ao', function (t) {
-		fs.readFile(cityhouse_file, function (err, citygrid) {
+		fs.readFile(_path('cityhouse.png'), function (err, citygrid) {
 			if (err) throw err;
 
 			var citygrid_img = new Canvas.Image();
@@ -64,7 +75,7 @@ if (false) {
 								return [color, color, color, 255];
 							}
 							, true);
-					}, ao, true);
+					}, ao_filter, true);
 				});
 		});
 	}); // test_ao
@@ -73,7 +84,7 @@ if (false) {
 if (false) {
 
 	tap.test('test_ao_large', function (t) {
-		fs.readFile(citygrid_file, function (err, citygrid) {
+		fs.readFile(_path('citygrid.png'), function (err, citygrid) {
 			if (err) throw err;
 
 			var citygrid_img = new Canvas.Image();
@@ -88,7 +99,7 @@ if (false) {
 					city_topo.filter(function (err, ao_shading) {
 						if (_DEBUG) console.log('ao_shading data', util.inspect(ao_shading.data));
 						city_topo.filter(function (err, blended) {
-								blended.draw(citygrid_shaded_file, function () {
+								blended.draw(_path('cityhouse_ao.png'), function () {
 									t.end();
 								});
 							},
@@ -97,7 +108,7 @@ if (false) {
 								return [color, color, color, 255];
 							}
 							, true);
-					}, ao, true);
+					}, ao_filter, true);
 				});
 		});
 	}); // test_ao
@@ -106,11 +117,84 @@ if (false) {
 if (true) {
 
 	tap.test('test_ao_and_shadow', function (t) {
-		fs.readFile(citygrid_file, function (err, citygrid) {
+		var _ao_topo;
+		var _shaded_topo;
+		var _city_topo;
+		var _ambient_city;
+
+		function _do_draw_ambient_cit_post(err, ambient_city) {
+		_ambient_city = ambient_city;
+			if (_STATE) console.log('_draw_post');
+			ambient_city.draw(_path('citygrid_ambient.png'), function(){
+				t.end();
+			}, _grayscale_to_color);
+		}
+
+		function _blend_city_and_ao(err, shaded_topo) {
+			if (_STATE) console.log('_blend_city_and_ao');
+			_shaded_topo = shaded_topo;
+			var i = 0;
+			_city_topo.combine(_do_draw_ambient_cit_post, _ao_topo,
+				function (city, ao) {
+					if(!(++i % 40)) console.log('aos: %s, city: %s', ao, city);
+					return (city + ao);
+				}, true);
+
+		}
+
+		function _draw_shaded(err, shaded_topo) {
+			if (_STATE) console.log('_draw_shaded');
+			_shaded_topo = shaded_topo;
+			shaded_topo.draw(_path('citygrid_shaded.png'), _blend_city_and_ao, _float_to_color)
+		}
+
+		function _get_shaded() {
+			if (_STATE) console.log('_get_shaded');
+			_city_topo.filter( _draw_shaded,
+				shade_filter, true);
+		}
+
+		function _draw_ambient_city(err, ambient_city){
+			if (_STATE) console.log('_draw_ambient_city');
+			_ambient_city = ambient_city;
+			_ambient_city.draw(_path('citygrid_ambient_analysis.png'), _get_shaded, _d_grayscale_to_color)
+		}
+
+		function _combine_city_with_ambient_shading() {
+			if (_STATE) console.log('_combine_city_with_ambient_shading');
+			//console.log('_shaded_topo: %s', util.inspect(_shaded_topo).substring(0, 50))
+			var i = 0;
+			_ao_topo.combine(_draw_ambient_city, _city_topo, function (ao_value, city_value) {
+				if(!(++i % 40)) console.log('blending ambient %s, city %s', ao_value, city_value);
+				return city_value + ao_value;
+			}, true);
+
+		}
+
+		function _do_draw_ao(err, ao_topo) {
+			if (_STATE) console.log('_do_draw_ao');
+			_ao_topo = ao_topo;
+			ao_topo.draw(_path('citygrid_ao.png'),
+				_combine_city_with_ambient_shading
+				, _d_grayscale_to_color
+			);
+		}
+		
+		function _make_ao_topo(){
+			_city_topo.filter(_do_draw_ao, ao_filter, true);
+		}
+
+		function _draw_city_topo(){
+			if (_STATE) console.log('_draw_city_topo');
+			_city_topo.draw(_path('citygrid_topo.png'), _make_ao_topo, _grayscale_to_color);
+		}
+
+		function _do_make_citygrid_topo(err, citygrid_buffer) {
+			if (_STATE) console.log('_do_make_citygrid_topo');
 			if (err) throw err;
 
 			var citygrid_img = new Canvas.Image();
-			citygrid_img.src = citygrid;
+			citygrid_img.src = citygrid_buffer;
 
 			node_topo.TopoGrid({}, {
 					source_type: 'image',
@@ -118,29 +202,11 @@ if (true) {
 				},
 				function (err, city_topo) {
 					city_topo.compress_to_greyscale();
-					city_topo.filter(function (err, ao_shading) {
-						if (_DEBUG) console.log('ao_shading data', util.inspect(ao_shading.data));
-						ao_shading.draw(citygrid_ao_file,
-							function () {
-								city_topo.filter(function (err, shaded) {
-										shaded.draw(citygrid_shaded_file, function () {
-											t.end();
-										}, function (v) {
-										//	console.log('color for shadow: %s', v);
-											var color = Math.floor(v * 255);
-											return [color, color, color, 255];
-										})
-
-									},
-									shade, true);
-							}, function (value) {
-								var color = parseInt(128 + value);
-								return [color, color, color, 255];
-							}
-						);
-
-					}, ao, true);
+					_city_topo = city_topo;
+					_draw_city_topo();
 				});
-		});
-	}); // test_ao
+		}
+
+		fs.readFile(_path('citygrid.png'), _do_make_citygrid_topo);
+	}); // test_ao_and_shadow
 }
