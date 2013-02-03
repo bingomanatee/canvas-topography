@@ -1,0 +1,22 @@
+{
+	"name":         "node-topology",
+	"version":      "0.0.1",
+	"scripts":      {
+		"start": "node app"
+	},
+	"keywords":     [
+		"node",
+		"canvas"
+	],
+	"dependencies": {
+		"gate":                ">=0.3.0",
+		"hive-component":      ">=0.0.1",
+		"hive-model-mongoose": ">=0.0.1",
+		"gridfs-stream":       ">=0.3.2",
+		"mongoose":            "*",
+		"underscore":          "1.4.3",
+		"tap":                 ">=0.3.3",
+		"browserify":          "*",
+		"canvas":              "1.0.0"
+	}
+}
