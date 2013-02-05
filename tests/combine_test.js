@@ -6,7 +6,6 @@ var Canvas = require('canvas');
 var node_topo = require('./../index');
 var fs = require('fs');
 var _DEBUG = false;
-var assert = require('assert');
 
 /* *********************** TEST SCAFFOLDING ********************* */
 var cityhouse_file = path.resolve(__dirname, '../test_source/cityhouse.png');
