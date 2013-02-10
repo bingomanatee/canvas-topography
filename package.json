@@ -4,13 +4,14 @@
 	"scripts":      {
 		"start": "node app"
 	},
+	"main": "index.js",
 	"keywords":     [
 		"node",
 		"canvas"
 	],
 	"dependencies": {
 		"gate":                ">=0.3.0",
-		"hive-component":      ">=0.0.1",
+		"hive-component":      ">=0.0.1a",
 		"underscore":          "1.4.3",
 		"tap":                 ">=0.3.3"
 	}
